@@ -16,12 +16,18 @@
 
 package lk.ac.mrt.cse.dbs.simpleexpensemanager.data.impl;
 
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.AccountDAO;
+import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.database.DBHelper;
 import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.exception.InvalidAccountException;
 import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.model.Account;
 import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.model.ExpenseType;
@@ -62,7 +68,7 @@ public class PersistentAccountDAO implements AccountDAO {
         res.moveToFirst();
 
         while(res.isAfterLast() == false){
-            Account account = new Account(res.getString(0),res.getString(1),res.getString(2)),res.getDouble(3));
+            Account account = new Account(res.getString(0), res.getString(1),res.getString(2),res.getDouble(3));
             array_list.add(account);
             res.moveToNext();
         }
@@ -80,7 +86,7 @@ public class PersistentAccountDAO implements AccountDAO {
         res.moveToFirst();
 
         if(res.isAfterLast() == false){
-            Account account = new Account(res.getString(0),res.getString(1),res.getString(2)),res.getDouble(3));
+            Account account = new Account(res.getString(0),res.getString(1),res.getString(2),res.getDouble(3));
             if(!res.isClosed()){
                 res.close();
             }
@@ -94,27 +100,26 @@ public class PersistentAccountDAO implements AccountDAO {
     public void addAccount(Account account) {
         SQLiteDatabase db = accounts.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
-        contentValues.put("accountNo", account.getAccountNumber());
+        contentValues.put("accountNo", account.getAccountNo());
         contentValues.put("bankName", account.getBankName());
-        contentValues.put("bankHolderName", account.getBankHolderName());
+        contentValues.put("accountHolderName", account.getAccountHolderName());
         contentValues.put("balance", account.getBalance());
         db.insert("account", null, contentValues);
-        return true;
+        return;
     }
 
     @Override
     public void removeAccount(String accountNo) throws InvalidAccountException {
-        SQLiteDatabase db = this.getWritableDatabase();
+        SQLiteDatabase db = accounts.getWritableDatabase();
         getAccount(accountNo);
-        return db.delete("account",
-                "accountNo = '"+accountNo+"' ",
-                new String[] { Integer.toString(id) });
+        db.delete("account","accountNo = ?",new String[] { accountNo });
+        return;
     }
 
     @Override
     public void updateBalance(String accountNo, ExpenseType expenseType, double amount) throws InvalidAccountException {
 
-        SQLiteDatabase db = this.getWritableDatabase();
+        SQLiteDatabase db = accounts.getWritableDatabase();
         Account account = getAccount(accountNo);
         ContentValues contentValues = new ContentValues();
         contentValues.put("accountNo", accountNo);
@@ -127,7 +132,7 @@ public class PersistentAccountDAO implements AccountDAO {
                 contentValues.put("balance", account.getBalance() + amount);
                 break;
         }
-        db.update("account", contentValues, "accountNo = '"+accountNo+"' ", new String[] { Integer.toString(id) } );
-        return true;
+        db.update("account", contentValues, "accountNo = ?", new String[] { accountNo } );
+        return;
     }
 }

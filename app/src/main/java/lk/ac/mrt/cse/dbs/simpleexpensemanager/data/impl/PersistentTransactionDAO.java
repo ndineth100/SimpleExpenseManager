@@ -16,11 +16,22 @@
 
 package lk.ac.mrt.cse.dbs.simpleexpensemanager.data.impl;
 
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.DatabaseUtils;
+import android.database.sqlite.SQLiteDatabase;
+
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
 import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.TransactionDAO;
+import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.database.DBHelper;
 import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.model.ExpenseType;
 import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.model.Transaction;
 
@@ -40,7 +51,8 @@ public class PersistentTransactionDAO implements TransactionDAO {
 
         SQLiteDatabase db = transactions.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
-        contentValues.put("date", date);
+        DateFormat d = new SimpleDateFormat("yyyy-MM-dd");
+        contentValues.put("date",d.format(date));
         contentValues.put("accountNo", accountNo);
         switch (expenseType) {
             case EXPENSE:
@@ -52,17 +64,17 @@ public class PersistentTransactionDAO implements TransactionDAO {
         }
         contentValues.put("amount", amount);
         db.insert("transactions", null, contentValues);
-        return true;
+        return;
     }
 
     @Override
     public List<Transaction> getAllTransactionLogs() {
         ArrayList<Transaction> array_list = new ArrayList<Transaction>();
-        SQLiteDatabase db = accounts.getReadableDatabase();
+        SQLiteDatabase db = transactions.getReadableDatabase();
         Cursor res =  db.rawQuery( "select * from transactions", null );
         res.moveToFirst();
         while(res.isAfterLast() == false){
-            ExpenseType expense;
+            ExpenseType expense = null;
             switch (res.getInt(2)) {
                 case 1:
                     expense= ExpenseType.EXPENSE;
@@ -71,7 +83,13 @@ public class PersistentTransactionDAO implements TransactionDAO {
                     expense=ExpenseType.INCOME;
                     break;
             }
-            Transaction _transaction = new Transaction (res.getString(0),res.getString(1),expense,res.getDouble(3));
+            DateFormat d= new SimpleDateFormat("yyyy-MM-dd") ;
+            Transaction _transaction = null;
+            try {
+                _transaction = new Transaction(d.parse(res.getString(0)),res.getString(1),expense,res.getDouble(3));
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
             array_list.add(_transaction);
             res.moveToNext();
         }
@@ -83,18 +101,34 @@ public class PersistentTransactionDAO implements TransactionDAO {
 
     @Override
     public List<Transaction> getPaginatedTransactionLogs(int limit) {
-        SQLiteDatabase db = transactions.getReadableDatabase();
-        int size = (int) DatabaseUtils.queryNumEntries(db, "transactions");
-        if (size <= limit) {
-            return getAllTransactionLogs();
-        }
-        // return the last <code>limit</code> number of transaction logs
-
-
         ArrayList<Transaction> array_list = new ArrayList<Transaction>();
-        array_list=getAllTransactionLogs();
-
-        return array_list.subList(size - limit, size);
+        SQLiteDatabase db = transactions.getReadableDatabase();
+        Cursor res =  db.rawQuery( "select * from transactions limit "+limit+" ", null );
+        res.moveToFirst();
+        while(res.isAfterLast() == false){
+            ExpenseType expense=null;
+            switch (res.getInt(2)) {
+                case 1:
+                    expense= ExpenseType.EXPENSE;
+                    break;
+                case 0:
+                    expense=ExpenseType.INCOME;
+                    break;
+            }
+            DateFormat d= new SimpleDateFormat("yyyy-MM-dd") ;
+            Transaction _transaction = null;
+            try {
+                _transaction = new Transaction(d.parse(res.getString(0)),res.getString(1),expense,res.getDouble(3));
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+            array_list.add(_transaction);
+            res.moveToNext();
+        }
+        if(!res.isClosed()){
+            res.close();
+        }
+        return array_list;
     }
 
 }
